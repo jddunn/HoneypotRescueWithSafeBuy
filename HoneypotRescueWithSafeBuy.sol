@@ -181,7 +181,7 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
         uint256 sellResult; // Result of sell transaction of honeypot token test (If it's greater than 0 then we were able to sell)
         uint256 buyCost; // Cost of the gas to buy
         uint256 sellCost; // Cost of the gas to sell 
-        uint256 expectedAmount; // How much user expected to receive. This will be equal to our $minTransactionAmount.
+        uint256 expectedAmount; // How much user expected to receive. This will be equal to our $minTransactionAmount in the default test.
     }
 
     struct SafeBuyResponse {
