@@ -11,7 +11,7 @@ Supported functionality:
   
    returns:
    
-  `struct HoneypotCheckResponse {
+  ```struct HoneypotCheckResponse {
         uint256 buyResult; // Result of buying transaction of honeypot token test
         uint256 targetTokenBalance; // Balance of the token we wanted to transfer (Usually set to $minTransactionAmount)
         uint256 sellResult; // Result of sell transaction of honeypot token test (If it's greater than 0 then we were able to sell)
@@ -19,7 +19,7 @@ Supported functionality:
         uint256 sellCost; // Cost of the gas to sell 
         uint256 expectedAmount; // How much user expected to receive. This will be equal to our $minTransactionAmount.
     }
-    `
+    ```
     
     If sellResult is 0, then it's a honeypot.
 
