@@ -34,7 +34,8 @@ Supported functionality:
   
 - SafeBuy proxy method for secure transactions
 
-  This method automatically checks for honeypot transactions (contract pays test fees) before allowing a user transfer transaction to go through. 
+  This method automatically checks for honeypot transactions (contract pays test fees) before allowing a user transfer transaction to go through.
+  
   Will return swapped tokens if approved transaction or original tokens back to user if a honeypot is found.
   
   `safeBuy(address targetTokenAddress, address routerAddr) payable`
@@ -43,8 +44,9 @@ Supported functionality:
 
   `emergencyWithdrawFromAllPoolsInMasterChef(address addr)`
   
-- Honeypot rescue bypass sell (attempts a transfer using Factory methods in case honeypot contract has disabled transfers)
-  User must deposit liquidityToken amount to swap first with `depositToken(address)`. Attempts 
+- Honeypot rescue bypass sell (attempts a transfer using Factory methods in case honeypot contract has disabled transfers).
+
+  User must deposit liquidityToken amount to swap first with `depositToken(address)`.
   
   `honeypotBypass(address honeypotToken, address liquidityToken, address factoryAddr)`
   
