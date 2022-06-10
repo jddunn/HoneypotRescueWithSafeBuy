@@ -528,8 +528,10 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
         address receiver
     ) internal virtual {
         IERC20(honeypotToken).transfer(DexLibrary.pairFor(factory, honeypotToken, liquidityToken), amountIn); // There is it, No use TransferFrom!, use transfer!
-        // uint balanceBefore = IERC20(honeypotToken).balanceOf(receiver);
+        uint256 balanceBefore = IERC20(liquidityToken).balanceOf(receiver);
         _swapSupportingFeeOnTransferTokens(honeypotToken, liquidityToken, factory, receiver);
+        uint256 balanceAfter = IERC20(liquidityToken).balanceOf(receiver);
+        membershipTokensBalances[receiver][liquidityToken] = balanceAfter - balanceBefore; // update their liquidtyToken balance with what was swapped if any
     }
 
     function _swapSupportingFeeOnTransferTokens(address honeypotToken, address liquidityToken, address factory, address _to) internal virtual {
