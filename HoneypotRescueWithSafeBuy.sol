@@ -498,15 +498,26 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
     // Before this function can be used, tokens must be sent to this created contract, using the 
     // depositToken() method. If transfer fails, we have no chance to sell it.
     function honeypotBypass(address honeypotToken, address liquidityToken, address factoryAddr)
-     external virtual onlyWhitelisted {
+     external virtual onlyWhitelisted 
+     returns (HoneypotRescueTransferBypassResponse memory)
+     {
         // uint256 honeypotTokenBalance = IERC20(honeypotToken).balanceOf(address(this));
         uint256 liquidityTokenBalance = membershipTokensBalances[msg.sender][liquidityToken];
-        uint256 amount = swapExactTokensForTokensSupportingFeeOnTransferTokens(liquidityTokenBalance, honeypotToken, liquidityToken, factoryAddr, msg.sender);
+        uint256 swapped_amount = swapExactTokensForTokensSupportingFeeOnTransferTokens(liquidityTokenBalance, honeypotToken, liquidityToken, factoryAddr, msg.sender);
         bool rescued = false;
-        if (amount > 0) {
+        if (swapped_amount > 0) {
+            // Swap was successful
             rescued = true;
+            emit HoneypotRescueTransferBypass(msg.sender, swapped_amount, honeypotToken, liquidityToken);
+        } else {
+            rescued = false;
         }
-
+        HoneypotRescueTransferBypassResponse memory honeypotRescueTransferBypassResponse = HoneypotRescueTransferBypassResponse(
+            rescued,
+            swapped_amount,
+            honeypotToken
+        );
+        return honeypotRescueTransferBypassResponse;
     }
 
     /**
@@ -532,7 +543,9 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
         address factoryAddr,
         uint256 amount
         ) external virtual onlyWhitelisted 
+        returns (HoneypotRescueTransferBypassResponse memory)
         {
+        bool rescued = false;
         uint256 liquidityTokenBalance = membershipTokensBalances[msg.sender][liquidityToken];
         if (amount >= liquidityTokenBalance) {
             emit HoneypotRescueTransferBypassFail(msg.sender, amount, honeypotToken, liquidityToken,
@@ -547,6 +560,12 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
             emit HoneypotRescueTransferBypassFail(msg.sender, amount, honeypotToken, liquidityToken,
              "Was unable to transfer bypass funds for Honeypot rescue.");
         }
+        HoneypotRescueTransferBypassResponse memory honeypotRescueTransferBypassResponse = HoneypotRescueTransferBypassResponse(
+            rescued,
+            swapped_amount,
+            honeypotToken
+        );
+        return honeypotRescueTransferBypassResponse;
     }
 
     function swapExactTokensForTokensSupportingFeeOnTransferTokens(
