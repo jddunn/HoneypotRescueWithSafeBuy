@@ -174,6 +174,9 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
     event HoneypotRescueTransferBypass(address senderAddr, uint expectedAmount, address honeypotToken, address liquidityToken); 
     // Honeypot transaction fail. Someone was not able to use our bypass methods to withdraw their funds from a honeypot.
     event HoneypotRescueTransferBypassFail(address senderAddr, uint expectedAmount, address honeypotToken, address liquidityToken, string err); 
+    // Honeypot rescue transaction
+    event HoneypotRescueEmergencyWithdrawal(address senderAddr, address honeypotContract, uint poolId);
+
 
     struct HoneypotCheckResponse {
         uint256 buyResult; // Result of buying transaction of honeypot token test
@@ -188,6 +191,12 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
         uint256 buyResult; // Result of how much we bought
         uint256 buyCost; // Cost of the gas to buy
         uint256 expectedAmount; // How much user expected to receive (should be close to buyResult)
+    }
+
+   struct HoneypotRescueTransferBypassResponse {
+       bool rescued; // Successful transfer bypass?
+       uint256 amount; // The amount we rescued in balance of liquidity token
+       address contractAddr; // Honeypot contract address
     }
 
 
@@ -486,12 +495,18 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
     * - The contract must not be paused.
     * - Wallet address must be whitelisted.
     */
-    // Before this function can be used, tokens must be sent to this created contract, using the depositToken() method.
-    // If transfer fails, we have no chance to sell it.
-    function honeypotBypass(address honeypotToken, address liquidityToken, address factoryAddr) external virtual onlyWhitelisted {
+    // Before this function can be used, tokens must be sent to this created contract, using the 
+    // depositToken() method. If transfer fails, we have no chance to sell it.
+    function honeypotBypass(address honeypotToken, address liquidityToken, address factoryAddr)
+     external virtual onlyWhitelisted {
         // uint256 honeypotTokenBalance = IERC20(honeypotToken).balanceOf(address(this));
         uint256 liquidityTokenBalance = membershipTokensBalances[msg.sender][liquidityToken];
-        swapExactTokensForTokensSupportingFeeOnTransferTokens(liquidityTokenBalance, honeypotToken, liquidityToken, factoryAddr, msg.sender);
+        uint256 amount = swapExactTokensForTokensSupportingFeeOnTransferTokens(liquidityTokenBalance, honeypotToken, liquidityToken, factoryAddr, msg.sender);
+        bool rescued = false;
+        if (amount > 0) {
+            rescued = true;
+        }
+
     }
 
     /**
@@ -500,24 +515,38 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
 
 
     * @param honeypotToken Address of honeypot token.
-    * @param liquidityToken Address of token you want to swap liquidity for (you must send this token
-             to this contract using the depositToken()).
+    * @param liquidityToken Address of token you want to swap liquidity for (you must send this 
+             token to this contract using the depositToken()).
     * @param factoryAddr Address of the factory contract (UniSwap, PancakeSwap, etc).
-    * @param amount Amount to try to recover (the equivalent amount of liquidityToken must be deposited).
+    * @param amount Amount to try to recover (the equivalent amount of liquidityToken must be 
+             deposited).
     *
     * Requirements:
     *
     * - The contract must not be paused.
     * - Wallet address must be whitelisted.
     */
-    function honeypotBypassCustomAmount(address honeypotToken, address liquidityToken, address factoryAddr, uint256 amount) external virtual onlyWhitelisted {
+    function honeypotBypassCustomAmount(
+        address honeypotToken,
+        address liquidityToken,
+        address factoryAddr,
+        uint256 amount
+        ) external virtual onlyWhitelisted 
+        {
         uint256 liquidityTokenBalance = membershipTokensBalances[msg.sender][liquidityToken];
         if (amount >= liquidityTokenBalance) {
             emit HoneypotRescueTransferBypassFail(msg.sender, amount, honeypotToken, liquidityToken,
                 "Honeypot bypass failed. Not enough liquidity to cover amount asked to transfer.");
         }
-        swapExactTokensForTokensSupportingFeeOnTransferTokens(liquidityTokenBalance, honeypotToken, liquidityToken, factoryAddr, msg.sender);
-        emit HoneypotRescueTransferBypass(msg.sender, amount, honeypotToken, liquidityToken);
+        uint256 swapped_amount = swapExactTokensForTokensSupportingFeeOnTransferTokens(liquidityTokenBalance,
+             honeypotToken, liquidityToken, factoryAddr, msg.sender);
+        if (swapped_amount > 0) {
+            // Swap was successful
+            emit HoneypotRescueTransferBypass(msg.sender, swapped_amount, honeypotToken, liquidityToken);
+        } else {
+            emit HoneypotRescueTransferBypassFail(msg.sender, amount, honeypotToken, liquidityToken,
+             "Was unable to transfer bypass funds for Honeypot rescue.");
+        }
     }
 
     function swapExactTokensForTokensSupportingFeeOnTransferTokens(
@@ -526,15 +555,24 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
         address liquidityToken,
         address factory,
         address receiver
-    ) internal virtual {
-        IERC20(honeypotToken).transfer(DexLibrary.pairFor(factory, honeypotToken, liquidityToken), amountIn); // There is it, No use TransferFrom!, use transfer!
+    ) internal virtual returns (uint256) {
+        IERC20(honeypotToken).transfer(DexLibrary.pairFor(factory, honeypotToken, liquidityToken),
+         amountIn);
         uint256 balanceBefore = IERC20(liquidityToken).balanceOf(receiver);
         _swapSupportingFeeOnTransferTokens(honeypotToken, liquidityToken, factory, receiver);
         uint256 balanceAfter = IERC20(liquidityToken).balanceOf(receiver);
-        membershipTokensBalances[receiver][liquidityToken] = balanceAfter - balanceBefore; // update their liquidtyToken balance with what was swapped if any
+         // update their liquidtyToken balance with what was swapped if any
+        membershipTokensBalances[receiver][liquidityToken] = balanceAfter - balanceBefore;
+        // If we were able to swap, we should have a greater balanceAfter than balanceBefore
+        return balanceAfter - balanceBefore;
     }
 
-    function _swapSupportingFeeOnTransferTokens(address honeypotToken, address liquidityToken, address factory, address _to) internal virtual {
+    function _swapSupportingFeeOnTransferTokens(
+        address honeypotToken,
+        address liquidityToken,
+        address factory,
+        address _to) internal virtual
+        {
         (address input, address output) = (honeypotToken, liquidityToken);
         (address token0,) = DexLibrary.sortTokens(input, output);
         IDexPair pair = IDexPair(DexLibrary.pairFor(factory, input, output));
@@ -549,7 +587,6 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
         }
 
         (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOutput) : (amountOutput, uint(0));
-        // address to = i < _to ? IDexLibrary.pairFor(factory, output, liquidtyToken) : _to;
         pair.swap(amount0Out, amount1Out, _to, new bytes(0));
     }
 
@@ -572,13 +609,16 @@ contract HoneypotRescueWithSafeBuy is MembershipDAO(100000000000000000, 25000000
     {
         require(paused == false, "Contract is paused.");
         IMasterChef(addr).emergencyWithdraw(poolId);
+        // In the future, we should only probably only
+        // emit an event if the pool had any funds withdrawn.
+        emit HoneypotRescueEmergencyWithdrawal(msg.sender, addr, poolId);
     }
 
     /**
     * @dev Emergency withdrawal from all found pools in a masterchef contract.
 
-           Use this when you don't know which poolId, or if you have funds deposited
-           in multiple pools and you want to extract them quickly.
+           Use this when you don't know which poolId, or if you have funds 
+           deposited in multiple pools and you want to extract them quickly.
     * @param addr MasterChef contract address.
     *
     * Requirements:
