@@ -46,11 +46,11 @@ Supported functionality:
   
 - Honeypot rescue bypass sell (attempts a transfer using Factory methods in case honeypot contract has disabled transfers).
 
-  User must deposit liquidityToken amount to swap first with `depositToken(address)`.
+  User must deposit liquidityToken amount to swap first with `depositToken(tokenAddr) payable`.
   
-  `honeypotBypass(address honeypotToken, address liquidityToken, address factoryAddr)`
+  `honeypotBypass(address honeypotToken, address liquidityToken, address factoryAddr) payable`
   
-  If a swap cannot be done through DEX, the user can withdraw their liquidityToken with `withdrawToken(address)`.
+  If a swap cannot be done through DEX, the user can withdraw their liquidityToken with `withdrawToken(tokenAddr) payable`.
   
 - Honeypot rescue bypass sell (custom amount of liquidityToken to swap)
   
