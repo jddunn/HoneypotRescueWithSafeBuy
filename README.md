@@ -1,5 +1,7 @@
 # HoneypotRescueWithSafeBuy
-On-chain honeypot detection with SafeBuy proxy method for secure transfers. Includes funds withdrawal rescue tools from honeypots and MasterChef contracts. 
+On-chain honeypot detection with SafeBuy proxy method for secure transfers. Includes funds withdrawal rescue tools from honeypots and MasterChef contracts. Inherits from MembershipDAO contract (https://github.com/jddunn/MembershipDAO), so only subscribed members to the contract can call these functions. 
+
+Note: This is a POC contract and is not meant for production purposes.
 
 Cross-chain supported by passing in a router or factory address.
 
